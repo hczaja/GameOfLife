@@ -3,23 +3,25 @@
 #include <stdio.h>
 #include <array>
 #include <unistd.h>
+#include <string>
 #include <time.h>
 
-#define ARRAY_SIZE 320
-#define CELL_SIZE 2
+#define ARRAY_SIZE 640
+#define CELL_SIZE 10
 
 static constexpr auto _WIDTH = 640;
 static constexpr auto _HEIGHT = 640;
 
 template<typename T>
-using matrix = std::array<std::array<T, ARRAY_SIZE>, ARRAY_SIZE>;
+using matrix = std::array<std::array<T, ARRAY_SIZE/CELL_SIZE>, ARRAY_SIZE/CELL_SIZE>;
+
 
 class GameOfLife {
 	struct Cell {
 		SDL_Rect rect;
 
 		typedef enum {
-			DEAD, ALIVE
+			DEAD, ALIVE, BLUE
 		} STATE;
 	
 		STATE state;
@@ -33,17 +35,26 @@ class GameOfLife {
 		void draw(SDL_Surface* surface) {
 			if(state == DEAD)
 				SDL_FillRect(surface, &rect, SDL_MapRGB(surface->format, 0xFF,0,0));
-			else
+			else if (state == ALIVE)
 				SDL_FillRect(surface, &rect, SDL_MapRGB(surface->format, 0,0xFF,0));
+			else
+				SDL_FillRect(surface, &rect, SDL_MapRGB(surface->format, 0,0,0xFF));
 
 		}
 	};
+
+	typedef enum {
+		ST1, ST2, OSC, GLI
+	} FIGURE;
+
+	FIGURE f;
 
 	matrix<Cell> t;
 	matrix<Cell> t1;
 
 	void checkSurroundings(int, int);
 	void draw(SDL_Window*, SDL_Surface*);
+	void clear();
 
 	public:
 
@@ -52,28 +63,38 @@ class GameOfLife {
 };
 
 GameOfLife::GameOfLife() {
-	for(auto i = 0; i<ARRAY_SIZE; i++) {
-		for(auto j=0; j<ARRAY_SIZE; j++) {
+	for(auto i = 0; i<ARRAY_SIZE/CELL_SIZE; i++) {
+		for(auto j=0; j<ARRAY_SIZE/CELL_SIZE; j++) {
 			t[i][j].init(i,j,CELL_SIZE,CELL_SIZE);
 			t1[i][j].init(i,j,CELL_SIZE,CELL_SIZE);
 		}
 	}
 
-	t[1][1].state = Cell::ALIVE;
-	t[1][2].state = Cell::ALIVE;
-	t[1][3].state = Cell::ALIVE;
+	f = FIGURE::ST1;
 	
 	srand(time(NULL));
-	int range = ARRAY_SIZE*(ARRAY_SIZE/2);
+	int range = (ARRAY_SIZE/CELL_SIZE)*((ARRAY_SIZE/CELL_SIZE)/2);
 	for(auto i = 0; i<range; i++) {
-		int a = rand()%ARRAY_SIZE;
-		int b = rand()%ARRAY_SIZE;
+		int a = rand()%ARRAY_SIZE/CELL_SIZE;
+		int b = rand()%ARRAY_SIZE/CELL_SIZE;
 		t[a][b].state = Cell::ALIVE;		
 	}
 }
 
+void GameOfLife::clear() {
+	for(auto i = 0; i<ARRAY_SIZE/CELL_SIZE; i++) {
+		for(auto j=0; j<ARRAY_SIZE/CELL_SIZE; j++) {
+			t[i][j].state = Cell::DEAD;
+		}
+	}
+	printf("Clear\n");	
+}
+
 void GameOfLife::checkSurroundings(int i, int j) {
 	int counter = 0;
+
+
+	int bound = ARRAY_SIZE/CELL_SIZE;
 	if(i==0 && j==0) {					// CORNERS
 		if(t[1][0].state == Cell::ALIVE)
 			counter++;
@@ -81,68 +102,68 @@ void GameOfLife::checkSurroundings(int i, int j) {
 			counter++;
 		if(t[0][1].state == Cell::ALIVE)
 			counter++;
-		if(t[ARRAY_SIZE-1][1].state == Cell::ALIVE)
+		if(t[bound-1][1].state == Cell::ALIVE)
 			counter++;
-		if(t[ARRAY_SIZE-1][0].state == Cell::ALIVE)
+		if(t[bound-1][0].state == Cell::ALIVE)
 			counter++;
-		if(t[ARRAY_SIZE-1][ARRAY_SIZE-1].state == Cell::ALIVE)
+		if(t[bound-1][bound-1].state == Cell::ALIVE)
 			counter++;
-		if(t[0][ARRAY_SIZE-1].state == Cell::ALIVE)
+		if(t[0][bound-1].state == Cell::ALIVE)
 			counter++;
-		if(t[1][ARRAY_SIZE-1].state == Cell::ALIVE)
+		if(t[1][bound-1].state == Cell::ALIVE)
 			counter++;
-	} else if (i == ARRAY_SIZE-1 && j == 0) {
-		if(t[ARRAY_SIZE-2][0].state == Cell::ALIVE)
+	} else if (i == bound-1 && j == 0) {
+		if(t[bound-2][0].state == Cell::ALIVE)
 			counter++;
-		if(t[ARRAY_SIZE-2][1].state == Cell::ALIVE)
+		if(t[bound-2][1].state == Cell::ALIVE)
 			counter++;
-		if(t[ARRAY_SIZE-1][1].state == Cell::ALIVE)
+		if(t[bound-1][1].state == Cell::ALIVE)
 			counter++;
 		if(t[0][1].state == Cell::ALIVE)
 			counter++;
 		if(t[0][0].state == Cell::ALIVE)
 			counter++;
-		if(t[0][ARRAY_SIZE-1].state == Cell::ALIVE)
+		if(t[0][bound-1].state == Cell::ALIVE)
 			counter++;
-		if(t[ARRAY_SIZE-1][ARRAY_SIZE-1].state == Cell::ALIVE)
+		if(t[bound-1][bound-1].state == Cell::ALIVE)
 			counter++;
-		if(t[ARRAY_SIZE-2][ARRAY_SIZE-1].state == Cell::ALIVE)
+		if(t[bound-2][bound-1].state == Cell::ALIVE)
 			counter++;
-	} else if (i == ARRAY_SIZE-1 && j == ARRAY_SIZE-1) {
-		if(t[ARRAY_SIZE-2][ARRAY_SIZE-1].state == Cell::ALIVE)
+	} else if (i == bound-1 && j == bound-1) {
+		if(t[bound-2][bound-1].state == Cell::ALIVE)
 			counter++;
-		if(t[ARRAY_SIZE-2][ARRAY_SIZE-2].state == Cell::ALIVE)
+		if(t[bound-2][bound-2].state == Cell::ALIVE)
 			counter++;
-		if(t[ARRAY_SIZE-1][ARRAY_SIZE-2].state == Cell::ALIVE)
+		if(t[bound-1][bound-2].state == Cell::ALIVE)
 			counter++;
-		if(t[0][ARRAY_SIZE-2].state == Cell::ALIVE)
+		if(t[0][bound-2].state == Cell::ALIVE)
 			counter++;
-		if(t[0][ARRAY_SIZE-1].state == Cell::ALIVE)
+		if(t[0][bound-1].state == Cell::ALIVE)
 			counter++;
 		if(t[0][0].state == Cell::ALIVE)
 			counter++;
-		if(t[ARRAY_SIZE-1][0].state == Cell::ALIVE)
+		if(t[bound-1][0].state == Cell::ALIVE)
 			counter++;
-		if(t[ARRAY_SIZE-2][0].state == Cell::ALIVE)
+		if(t[bound-2][0].state == Cell::ALIVE)
 			counter++;
-	} else if (i == 0 && j == ARRAY_SIZE-1) {
-		if(t[1][ARRAY_SIZE-1].state == Cell::ALIVE)
+	} else if (i == 0 && j == bound-1) {
+		if(t[1][bound-1].state == Cell::ALIVE)
 			counter++;
-		if(t[1][ARRAY_SIZE-2].state == Cell::ALIVE)
+		if(t[1][bound-2].state == Cell::ALIVE)
 			counter++;
-		if(t[0][ARRAY_SIZE-2].state == Cell::ALIVE)
+		if(t[0][bound-2].state == Cell::ALIVE)
 			counter++;
-		if(t[ARRAY_SIZE-1][ARRAY_SIZE-2].state == Cell::ALIVE)
+		if(t[bound-1][bound-2].state == Cell::ALIVE)
 			counter++;
-		if(t[ARRAY_SIZE-1][ARRAY_SIZE-1].state == Cell::ALIVE)
+		if(t[bound-1][bound-1].state == Cell::ALIVE)
 			counter++;
-		if(t[ARRAY_SIZE-1][0].state == Cell::ALIVE)
+		if(t[bound-1][0].state == Cell::ALIVE)
 			counter++;
 		if(t[0][0].state == Cell::ALIVE)
 			counter++;
 		if(t[1][0].state == Cell::ALIVE)
 			counter++;
-	} else if (i==0 && (j!=0 || j!=ARRAY_SIZE-1)) {		// BOUNDS
+	} else if (i==0 && (j!=0 || j!=bound-1)) {		// BOUNDS
 		if(t[0][j-1].state == Cell::ALIVE)
 			counter++;
 		if(t[1][j-1].state == Cell::ALIVE)
@@ -153,13 +174,13 @@ void GameOfLife::checkSurroundings(int i, int j) {
 			counter++;
 		if(t[0][j+1].state == Cell::ALIVE)
 			counter++;
-		if(t[ARRAY_SIZE-1][j+1].state == Cell::ALIVE)
+		if(t[bound-1][j+1].state == Cell::ALIVE)
 			counter++;
-		if(t[ARRAY_SIZE-1][j].state == Cell::ALIVE)
+		if(t[bound-1][j].state == Cell::ALIVE)
 			counter++;
-		if(t[ARRAY_SIZE-1][j-1].state == Cell::ALIVE)
+		if(t[bound-1][j-1].state == Cell::ALIVE)
 			counter++;
-	} else if (j==0 && (i!=0 || i!=ARRAY_SIZE-1)) {
+	} else if (j==0 && (i!=0 || i!=bound-1)) {
 		if(t[i-1][0].state == Cell::ALIVE)
 			counter++;
 		if(t[i-1][1].state == Cell::ALIVE)
@@ -170,22 +191,22 @@ void GameOfLife::checkSurroundings(int i, int j) {
 			counter++;
 		if(t[i+1][0].state == Cell::ALIVE)
 			counter++;
-		if(t[i+1][ARRAY_SIZE-1].state == Cell::ALIVE)
+		if(t[i+1][bound-1].state == Cell::ALIVE)
 			counter++;
-		if(t[i][ARRAY_SIZE-1].state == Cell::ALIVE)
+		if(t[i][bound-1].state == Cell::ALIVE)
 			counter++;
-		if(t[i-1][ARRAY_SIZE-1].state == Cell::ALIVE)
+		if(t[i-1][bound-1].state == Cell::ALIVE)
 			counter++;
-	} else if (i==ARRAY_SIZE-1 && (j!=0 || j!=ARRAY_SIZE-1)) {
-		if(t[ARRAY_SIZE-1][j-1].state == Cell::ALIVE)
+	} else if (i==bound-1 && (j!=0 || j!=bound-1)) {
+		if(t[bound-1][j-1].state == Cell::ALIVE)
 			counter++;
-		if(t[ARRAY_SIZE-2][j-1].state == Cell::ALIVE)
+		if(t[bound-2][j-1].state == Cell::ALIVE)
 			counter++;
-		if(t[ARRAY_SIZE-2][j].state == Cell::ALIVE)
+		if(t[bound-2][j].state == Cell::ALIVE)
 			counter++;
-		if(t[ARRAY_SIZE-2][j+1].state == Cell::ALIVE)
+		if(t[bound-2][j+1].state == Cell::ALIVE)
 			counter++;
-		if(t[ARRAY_SIZE-1][j+1].state == Cell::ALIVE)
+		if(t[bound-1][j+1].state == Cell::ALIVE)
 			counter++;
 		if(t[0][j+1].state == Cell::ALIVE)
 			counter++;
@@ -193,16 +214,16 @@ void GameOfLife::checkSurroundings(int i, int j) {
 			counter++;
 		if(t[0][j-1].state == Cell::ALIVE)
 			counter++;
-	} else if (j==ARRAY_SIZE-1 && (i!=0 || i!=ARRAY_SIZE-1)) {
-		if(t[i-1][ARRAY_SIZE-1].state == Cell::ALIVE)
+	} else if (j==bound-1 && (i!=0 || i!=bound-1)) {
+		if(t[i-1][bound-1].state == Cell::ALIVE)
 			counter++;
-		if(t[i-1][ARRAY_SIZE-2].state == Cell::ALIVE)
+		if(t[i-1][bound-2].state == Cell::ALIVE)
 			counter++;
-		if(t[i][ARRAY_SIZE-2].state == Cell::ALIVE)
+		if(t[i][bound-2].state == Cell::ALIVE)
 			counter++;
-		if(t[i+1][ARRAY_SIZE-2].state == Cell::ALIVE)
+		if(t[i+1][bound-2].state == Cell::ALIVE)
 			counter++;
-		if(t[i+1][ARRAY_SIZE-1].state == Cell::ALIVE)
+		if(t[i+1][bound-1].state == Cell::ALIVE)
 			counter++;
 		if(t[i+1][0].state == Cell::ALIVE)
 			counter++;
@@ -240,11 +261,20 @@ void GameOfLife::checkSurroundings(int i, int j) {
 		t1[i][j].state = Cell::DEAD;
 	else
 		t1[i][j].state = Cell::DEAD;
+
+	if(t[i][j].state == Cell::BLUE){
+		t1[i][j].state = Cell::ALIVE;
+	}
+
+
 }
 
 void GameOfLife::draw(SDL_Window* window, SDL_Surface* surf) {
-	for(int i=0; i<ARRAY_SIZE; i++) {
-		for(int j=0; j<ARRAY_SIZE; j++) {
+	for(int i=0; i<ARRAY_SIZE/CELL_SIZE; i++) {
+		for(int j=0; j<ARRAY_SIZE/CELL_SIZE; j++) {
+			if(t[i][j].state == Cell::BLUE){
+				t[i][j].state == Cell::ALIVE;
+			}
 			t[i][j].draw(surf);
 		}
 	}
@@ -264,24 +294,80 @@ void GameOfLife::run(SDL_Window* window, SDL_Surface* surface, SDL_Event e) {
 					if(!pause) printf("pause\n");
 					else printf("unpause\n");
 					pause = !pause;
-				} else if(pause && e.key.keysym.sym == SDLK_o) {
+				} else if (pause && e.key.keysym.sym == SDLK_o) {
 					if(!candraw) printf("can draw\n");
 					else printf("cant draw\n");
 					candraw = !candraw;
+				} else if (e.key.keysym.sym == SDLK_u) {
+					clear();
+				} else if (pause && e.key.keysym.sym == SDLK_i) {
+					SDL_GetMouseState(&xm,&ym);
+					if(xm>=0 && xm <= (ARRAY_SIZE/CELL_SIZE) * CELL_SIZE)
+						if(ym>=0 && ym <= (ARRAY_SIZE/CELL_SIZE) * CELL_SIZE) {
+							switch(f){
+								case ST1: {
+									t[xm/CELL_SIZE][ym/CELL_SIZE].state = Cell::BLUE;
+									t[xm/CELL_SIZE + 1][ym/CELL_SIZE].state = Cell::BLUE;
+									t[xm/CELL_SIZE][ym/CELL_SIZE - 1].state = Cell::BLUE;
+									t[xm/CELL_SIZE + 1][ym/CELL_SIZE - 1].state = Cell::BLUE;
+									break;
+								}
+								case ST2: {
+									t[xm/CELL_SIZE][ym/CELL_SIZE].state = Cell::BLUE;
+									t[xm/CELL_SIZE + 1][ym/CELL_SIZE].state = Cell::BLUE;
+									t[xm/CELL_SIZE - 1][ym/CELL_SIZE - 1].state = Cell::BLUE;
+									t[xm/CELL_SIZE + 2][ym/CELL_SIZE - 1].state = Cell::BLUE;
+									t[xm/CELL_SIZE][ym/CELL_SIZE - 2].state = Cell::BLUE;
+									t[xm/CELL_SIZE + 1][ym/CELL_SIZE - 2].state = Cell::BLUE;
+									break;
+								}
+								case OSC: {
+									t[xm/CELL_SIZE][ym/CELL_SIZE-1].state = Cell::BLUE;
+									t[xm/CELL_SIZE][ym/CELL_SIZE].state = Cell::BLUE;
+									t[xm/CELL_SIZE][ym/CELL_SIZE+1].state = Cell::BLUE;
+									break;
+								}
+								case GLI: {
+									t[xm/CELL_SIZE - 1][ym/CELL_SIZE].state = Cell::BLUE;
+									t[xm/CELL_SIZE][ym/CELL_SIZE + 1].state = Cell::BLUE;
+									t[xm/CELL_SIZE - 1][ym/CELL_SIZE - 1].state = Cell::BLUE;
+									t[xm/CELL_SIZE][ym/CELL_SIZE - 1].state = Cell::BLUE;
+									t[xm/CELL_SIZE + 1][ym/CELL_SIZE - 1].state = Cell::BLUE;
+									break;
+								}
+								default:
+									break;							
+
+							}
+						}
+				} else if (pause && e.key.keysym.sym == SDLK_1) {
+					printf("figure1\n");
+					f = FIGURE::ST1;
+				} else if (pause && e.key.keysym.sym == SDLK_2) {
+					printf("figure2\n");
+					f = FIGURE::ST2;
+				} else if (pause && e.key.keysym.sym == SDLK_3) {
+					printf("oscilator\n");
+					f = FIGURE::OSC;
+				} else if (pause && e.key.keysym.sym == SDLK_4) {
+					printf("glider\n");
+					f = FIGURE::GLI;
 				}
 			} else if(candraw && e.type == SDL_MOUSEMOTION) {
 				SDL_GetMouseState(&xm,&ym);
-				if(xm>=0 && xm <= ARRAY_SIZE * CELL_SIZE)
-					if(ym>=0 && ym <= ARRAY_SIZE * CELL_SIZE)
+				if(xm>=0 && xm <= (ARRAY_SIZE/CELL_SIZE) * CELL_SIZE)
+					if(ym>=0 && ym <= (ARRAY_SIZE/CELL_SIZE) * CELL_SIZE)
 						t[xm/CELL_SIZE][ym/CELL_SIZE].state = Cell::ALIVE;
+						printf("%d %d\n",xm/CELL_SIZE,ym/CELL_SIZE);				
 			}
 		} else {	
 			draw(window, surface);
 			if(!pause){
 				SDL_Delay(100);
-				for(int i=0; i<ARRAY_SIZE; i++)
-					for(int j=0; j<ARRAY_SIZE; j++)
+				for(int i=0; i<ARRAY_SIZE/CELL_SIZE; i++)
+					for(int j=0; j<ARRAY_SIZE/CELL_SIZE; j++){
 						checkSurroundings(i,j);
+					}
 	
 				t = t1;
 			}
